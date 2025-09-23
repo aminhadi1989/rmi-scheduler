@@ -20,6 +20,7 @@ const RMIScheduler = () => {
   const [actionHistory, setActionHistory] = useState([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(null);
   const [highlightedRow, setHighlightedRow] = useState(null);
+  const [dateInputs, setDateInputs] = useState({}); // Track date inputs for each floor
 
   // Tower configurations
   const towers = {
@@ -168,6 +169,13 @@ const RMIScheduler = () => {
   };
 
   const markAsCompleted = (towerId, floor) => {
+    // Set today's date in the date input immediately
+    const today = new Date().toISOString().split('T')[0];
+    setDateInputs(prev => ({
+      ...prev,
+      [`${towerId}-${floor}`]: today
+    }));
+
     setShowConfirmDialog({
       title: 'Mark Maintenance Complete',
       message: `Are you sure you want to mark Floor ${floor} maintenance as completed today?`,
@@ -215,7 +223,14 @@ const RMIScheduler = () => {
         );
         setShowConfirmDialog(null);
       },
-      onCancel: () => setShowConfirmDialog(null)
+      onCancel: () => {
+        // Clear the date input if user cancels
+        setDateInputs(prev => ({
+          ...prev,
+          [`${towerId}-${floor}`]: ''
+        }));
+        setShowConfirmDialog(null);
+      }
     });
   };
 
@@ -306,6 +321,60 @@ const RMIScheduler = () => {
     }
   };
 
+  const resetFloorStatus = (towerId, floor) => {
+    setShowConfirmDialog({
+      title: 'Reset Floor Status',
+      message: `Are you sure you want to reset Floor ${floor} maintenance status? This will clear all maintenance data for this floor.`,
+      onConfirm: () => {
+        const previousState = scheduleData[towerId]?.[floor] || { lastMaintenance: null, nextMaintenance: null, completed: false };
+        
+        const newState = {
+          lastMaintenance: null,
+          nextMaintenance: null,
+          completed: false
+        };
+
+        setScheduleData(prev => ({
+          ...prev,
+          [towerId]: {
+            ...prev[towerId],
+            [floor]: newState
+          }
+        }));
+
+        const actionId = Math.random().toString(36).substr(2, 9);
+        addToHistory({
+          id: actionId,
+          type: 'reset',
+          towerId,
+          floor,
+          previousState,
+          newState,
+          description: `Reset maintenance status for Floor ${floor}`
+        });
+
+        // Highlight the affected row
+        setHighlightedRow(`${towerId}-${floor}`);
+        setTimeout(() => setHighlightedRow(null), 2000);
+
+        showNotification(
+          `Floor ${floor} status reset successfully!`, 
+          'success', 
+          true, 
+          () => undoAction(actionId)
+        );
+        setShowConfirmDialog(null);
+      },
+      onCancel: () => setShowConfirmDialog(null)
+    });
+  };
+
+  const getFilterLabel = () => {
+    if (statusFilter === 'all') return 'Filter';
+    if (statusFilter === 'due-soon') return 'Filter: Due Soon';
+    return `Filter: ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
       {/* Header */}
@@ -336,7 +405,7 @@ const RMIScheduler = () => {
                     lineHeight: '1.1'
                   }}
                 >
-                  Room Maintenance
+                  Room Maintenance (RMI)
                 </motion.h1>
                 <motion.p 
                   initial={{ x: -30, opacity: 0 }}
@@ -542,7 +611,9 @@ const RMIScheduler = () => {
                   className="flex items-center gap-3 px-6 py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 shadow-sm hover:shadow-md"
                 >
                   <Filter className="w-5 h-5 text-gray-600" />
-                  Filter
+                  <span className={statusFilter !== 'all' ? 'font-medium text-blue-600' : ''}>
+                    {getFilterLabel()}
+                  </span>
                   <motion.div
                     animate={{ rotate: showFilters ? 180 : 0 }}
                     transition={{ duration: 0.3 }}
@@ -660,7 +731,14 @@ const RMIScheduler = () => {
                               <motion.input
                                 whileFocus={{ scale: 1.02 }}
                                 type="date"
+                                value={dateInputs[`${selectedTower}-${floor}`] || ''}
                                 onChange={(e) => {
+                                  const key = `${selectedTower}-${floor}`;
+                                  setDateInputs(prev => ({
+                                    ...prev,
+                                    [key]: e.target.value
+                                  }));
+                                  
                                   if (e.target.value) {
                                     addMaintenanceDate(selectedTower, floor, e.target.value);
                                   }
@@ -684,6 +762,15 @@ const RMIScheduler = () => {
                                 title="Undo last action for this floor"
                               >
                                 <Undo2 className="w-5 h-5" />
+                              </motion.button>
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => resetFloorStatus(selectedTower, floor)}
+                                className="p-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg transition-all duration-300 hover:shadow-lg group-hover:scale-105"
+                                title="Reset floor maintenance status"
+                              >
+                                <X className="w-5 h-5" />
                               </motion.button>
                             </div>
                           </td>
