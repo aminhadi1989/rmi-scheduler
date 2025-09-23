@@ -1,6 +1,10 @@
-import React from 'react'
-import { createRoot } from 'react-dom/client'
-import RMIScheduler from './RMIScheduler.jsx'
+import React from "react";
+import { createRoot } from "react-dom/client";
+import RMIScheduler from "./RMIScheduler.jsx";
+import "./index.css"; // <-- tailwind
 
-const root = createRoot(document.getElementById('root'))
-root.render(<RMIScheduler />)
+createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <RMIScheduler />
+  </React.StrictMode>
+);
