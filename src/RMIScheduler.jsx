@@ -52,10 +52,19 @@ const RMIScheduler = () => {
     }
   }, []);
 
-  // Save to localStorage whenever scheduleData changes
-  useEffect(() => {
-    localStorage.setItem('rmiSchedule', JSON.stringify(scheduleData));
-  }, [scheduleData]);
+// Save to Google Sheet via Netlify Function whenever scheduleData changes
+useEffect(() => {
+  if (scheduleData && scheduleData.length > 0) {
+    fetch("/.netlify/functions/updateSchedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduleData }),
+    })
+      .then(res => res.json())
+      .then(data => console.log(data.message))
+      .catch(err => console.error("Error updating sheet:", err));
+  }
+}, [scheduleData]);
 
   // Calculate upcoming reminders
   useEffect(() => {
