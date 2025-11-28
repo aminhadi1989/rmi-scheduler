@@ -5,6 +5,32 @@ import {
   ChevronDown, Undo2, AlertTriangle, X, Sparkles
 } from 'lucide-react';
 
+
+// SharePoint REST API Configuration
+const SHAREPOINT_API_URL = "https://teamsite.hyattoffice.com/sites/mooreacct/SSP/SANRS/_api/web/lists/getbytitle('RMI_Scheduler')/items";
+
+// Function to fetch data from SharePoint
+const fetchSharePointData = async () => {
+  try {
+    const response = await fetch(SHAREPOINT_API_URL, {
+      headers: {
+        'Accept': 'application/json;odata=verbose'
+      },
+      credentials: 'include' // Important for SharePoint auth
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('SharePoint Data:', data.d.results);
+    return data.d.results;
+  } catch (error) {
+    console.error('Error fetching SharePoint data:', error);
+    return null;
+  }
+};
 const RMIScheduler = () => {
   const [scheduleData, setScheduleData] = useState(() => {
     const saved = localStorage.getItem('rmiSchedule');
@@ -51,6 +77,24 @@ const RMIScheduler = () => {
       setScheduleData(initialSchedule);
     }
   }, []);
+
+    // Fetch data from SharePoint on component mount
+  useEffect(() => {
+    const loadSharePointData = async () => {
+      console.log('Fetching data from SharePoint...');
+      const sharePointData = await fetchSharePointData();
+      
+      if (sharePointData && sharePointData.length > 0) {
+        console.log('Successfully fetched SharePoint data:', sharePointData);
+        // TODO: Transform SharePoint data to match your app's data structure
+        // and update scheduleData state
+      } else {
+        console.log('No SharePoint data found or error occurred');
+      }
+    };
+    
+    loadSharePointData();
+  }, []); // Empty dependency array = run once on mount
 
 // Save to Google Sheet via Netlify Function whenever scheduleData changes
 useEffect(() => {
